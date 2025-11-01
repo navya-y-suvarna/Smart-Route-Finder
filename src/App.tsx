@@ -93,36 +93,36 @@ function App() {
           </button>
         </div>
 
-        {activeTab === 'find' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-xl shadow-lg p-6 h-[600px]">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Network Visualization</h2>
-                <div className="h-[calc(100%-3rem)] border-2 border-gray-200 rounded-lg overflow-hidden">
-                  <GraphVisualization
-                    nodes={nodes}
-                    edges={edges}
-                    highlightedPath={pathResult?.path || []}
-                  />
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-lg p-6 h-[600px]">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Network Visualization</h2>
+              <div className="h-[calc(100%-3rem)] border-2 border-gray-200 rounded-lg overflow-hidden">
+                <GraphVisualization
+                  nodes={nodes}
+                  edges={edges}
+                  highlightedPath={pathResult?.path || []}
+                />
               </div>
             </div>
+          </div>
 
-            <div>
+          <div>
+            {activeTab === 'find' ? (
               <PathFinder
                 locations={locations}
                 onFindPath={handleFindPath}
                 pathResult={pathResult}
                 isLoading={isLoading}
               />
-            </div>
+            ) : (
+              <div className="space-y-4 max-h-[600px] overflow-y-auto">
+                <LocationManager locations={locations} onLocationsChange={loadData} />
+                <RouteManager routes={routes} locations={locations} onRoutesChange={loadData} />
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="space-y-6">
-            <LocationManager locations={locations} onLocationsChange={loadData} />
-            <RouteManager routes={routes} locations={locations} onRoutesChange={loadData} />
-          </div>
-        )}
+        </div>
 
         {locations.length === 0 && activeTab === 'find' && (
           <div className="mt-8 bg-blue-50 border-2 border-blue-200 rounded-xl p-8 text-center">
