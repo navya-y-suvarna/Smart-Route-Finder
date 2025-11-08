@@ -209,6 +209,7 @@ export function buildGraphFromData(locations: Location[], routes: Route[]): Grap
 
   for (const route of routes) {
     graph.addEdge(route.from_location_id, route.to_location_id, route.distance);
+    graph.addEdge(route.to_location_id, route.from_location_id, route.distance);
   }
 
   return graph;
