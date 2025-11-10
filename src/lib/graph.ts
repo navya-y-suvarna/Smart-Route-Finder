@@ -71,6 +71,7 @@ export class Graph {
     const previous = new Map<string, string | null>();
     const pq = new PriorityQueue<string>();
 
+    // Initialize distances and previous
     for (const nodeId of this.nodes.keys()) {
       distances.set(nodeId, nodeId === startId ? 0 : Infinity);
       previous.set(nodeId, null);
@@ -82,17 +83,14 @@ export class Graph {
       const currentId = pq.dequeue();
       if (!currentId) break;
 
-      if (currentId === endId) break;
-
-      const currentDistance = distances.get(currentId) || Infinity;
+      const currentDistance = distances.get(currentId)!;
       const neighbors = this.adjacencyList.get(currentId);
 
       if (neighbors) {
         for (const [neighborId, edgeDistance] of neighbors.entries()) {
           const newDistance = currentDistance + edgeDistance;
-          const oldDistance = distances.get(neighborId) || Infinity;
 
-          if (newDistance < oldDistance) {
+          if (newDistance < (distances.get(neighborId) ?? Infinity)) {
             distances.set(neighborId, newDistance);
             previous.set(neighborId, currentId);
             pq.enqueue(neighborId, newDistance);
@@ -101,19 +99,41 @@ export class Graph {
       }
     }
 
-    const path: string[] = [];
-    let current: string | null | undefined = endId;
-
-    if (previous.get(endId) === null && startId !== endId) {
-      return null;
+    // ✅ Handle start == end
+    if (startId === endId) {
+      const node = this.nodes.get(startId);
+      if (!node) return null;
+      return {
+        path: [startId],
+        distance: 0,
+        locations: [
+          {
+            id: node.id,
+            name: node.name,
+            description: '',
+            x_coordinate: node.x,
+            y_coordinate: node.y,
+            created_at: '',
+          },
+        ],
+      };
     }
+
+    // ✅ Build path from previous map
+    const path: string[] = [];
+    let current: string | null = endId;
 
     while (current) {
       path.unshift(current);
-      current = previous.get(current);
+      current = previous.get(current) || null;
     }
 
-    const totalDistance = distances.get(endId) || 0;
+    // ✅ Check if a valid path exists
+    const totalDistance = distances.get(endId);
+    if (!totalDistance || totalDistance === Infinity || path[0] !== startId) {
+      return null;
+    }
+
     const locations = path
       .map(id => this.nodes.get(id))
       .filter((node): node is GraphNode => node !== undefined)
@@ -131,31 +151,6 @@ export class Graph {
       distance: totalDistance,
       locations,
     };
-  }
-
-  bfs(startId: string): string[] {
-    const visited = new Set<string>();
-    const queue: string[] = [startId];
-    const result: string[] = [];
-
-    visited.add(startId);
-
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      result.push(current);
-
-      const neighbors = this.adjacencyList.get(current);
-      if (neighbors) {
-        for (const neighborId of neighbors.keys()) {
-          if (!visited.has(neighborId)) {
-            visited.add(neighborId);
-            queue.push(neighborId);
-          }
-        }
-      }
-    }
-
-    return result;
   }
 
   dfs(startId: string): string[] {
@@ -208,9 +203,14 @@ export function buildGraphFromData(locations: Location[], routes: Route[]): Grap
   }
 
   for (const route of routes) {
-    graph.addEdge(route.from_location_id, route.to_location_id, route.distance);
-    graph.addEdge(route.to_location_id, route.from_location_id, route.distance);
+    graph.addEdge(String(route.from_location_id), String(route.to_location_id), route.distance);
+    graph.addEdge(String(route.to_location_id), String(route.from_location_id), route.distance);
   }
+
+
+  //graph.addEdge(String(route.from_location_id), String(route.to_location_id), route.distance);
+  console.log(" Graph Nodes:", graph.getNodes());
+  console.log(" Graph Edges:", graph.getEdges());
 
   return graph;
 }

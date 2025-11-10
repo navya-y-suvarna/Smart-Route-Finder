@@ -6,6 +6,7 @@ import GraphVisualization from './components/GraphVisualization';
 import PathFinder from './components/PathFinder';
 import LocationManager from './components/LocationManager';
 import RouteManager from './components/RouteManager';
+import { useMemo } from 'react';
 
 function App() {
   const [locations, setLocations] = useState<Location[]>([]);
@@ -15,14 +16,25 @@ function App() {
   const [activeTab, setActiveTab] = useState<'find' | 'manage'>('find');
 
   useEffect(() => {
+    import('./lib/supabase').then(({ testSupabaseConnection }) => {
+      testSupabaseConnection();
+    });
     loadData();
   }, []);
+
+  useEffect(() => {
+    setPathResult(null);
+  }, [locations, routes]);
+
 
   const loadData = async () => {
     const [locationsResult, routesResult] = await Promise.all([
       supabase.from('locations').select('*').order('name'),
       supabase.from('routes').select('*'),
     ]);
+
+    console.log("Locations from Supabase:", locationsResult.data);
+    console.log("Routes from Supabase:", routesResult.data);
 
     if (locationsResult.data) {
       setLocations(locationsResult.data);
@@ -34,22 +46,35 @@ function App() {
   };
 
   const handleFindPath = (fromId: string, toId: string) => {
-    setIsLoading(true);
-    try {
-      const graph = buildGraphFromData(locations, routes);
-      const result = graph.dijkstra(fromId, toId);
-      setPathResult(result);
-    } catch (error) {
-      console.error('Error finding path:', error);
+  console.log("Finding path between:", fromId, "and", toId);
+  setIsLoading(true);
+  try {
+    if (!graph) {
+      console.warn("Graph not built yet!");
       setPathResult(null);
-    } finally {
-      setIsLoading(false);
+      return;
     }
-  };
+    const result = graph.dijkstra(fromId, toId);
+    console.log("Path result:", result);
+    setPathResult(result);
+  } catch (error) {
+    console.error("Error finding path:", error);
+    setPathResult(null);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-  const graph = buildGraphFromData(locations, routes);
-  const nodes = graph.getNodes();
-  const edges = graph.getEdges();
+
+  const graph = useMemo(() => {
+    if (!locations || !routes) return null;
+    return buildGraphFromData(locations, routes);
+  }, [locations, routes]);
+
+  const nodes = graph ? graph.getNodes() : [];
+  const edges = graph ? graph.getEdges() : [];
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -73,21 +98,19 @@ function App() {
         <div className="mb-6 flex gap-4">
           <button
             onClick={() => setActiveTab('find')}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-              activeTab === 'find'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+            className={`px-6 py-3 rounded-lg font-semibold transition-all ${activeTab === 'find'
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
           >
             Find Routes
           </button>
           <button
             onClick={() => setActiveTab('manage')}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-              activeTab === 'manage'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+            className={`px-6 py-3 rounded-lg font-semibold transition-all ${activeTab === 'manage'
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
           >
             Manage Data
           </button>

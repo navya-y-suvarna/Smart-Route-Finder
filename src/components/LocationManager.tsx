@@ -61,7 +61,7 @@ export default function LocationManager({ locations, onLocationsChange }: Locati
   const handleEdit = (location: Location) => {
     setFormData({
       name: location.name,
-      description: location.description,
+      description: location.description || '',
       x_coordinate: location.x_coordinate.toString(),
       y_coordinate: location.y_coordinate.toString(),
     });

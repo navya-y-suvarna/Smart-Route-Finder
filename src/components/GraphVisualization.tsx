@@ -16,10 +16,10 @@ export default function GraphVisualization({
 }: GraphVisualizationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // ✅ Always call useEffect (never conditionally!)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -34,6 +34,7 @@ export default function GraphVisualization({
 
     ctx.clearRect(0, 0, width, height);
 
+    // ✅ Draw placeholder safely (still inside useEffect)
     if (nodes.length === 0) {
       ctx.fillStyle = '#9ca3af';
       ctx.font = '16px system-ui';
@@ -49,7 +50,6 @@ export default function GraphVisualization({
 
     const scaleX = (maxX - minX) > 0 ? (width - 2 * padding) / (maxX - minX) : 1;
     const scaleY = (maxY - minY) > 0 ? (height - 2 * padding) / (maxY - minY) : 1;
-
     const scale = Math.min(scaleX, scaleY);
 
     const centerX = width / 2;
@@ -57,12 +57,12 @@ export default function GraphVisualization({
     const graphCenterX = (minX + maxX) / 2;
     const graphCenterY = (minY + maxY) / 2;
 
-    const transform = (x: number, y: number) => {
-      const scaledX = (x - graphCenterX) * scale + centerX;
-      const scaledY = (y - graphCenterY) * scale + centerY;
-      return { x: scaledX, y: scaledY };
-    };
+    const transform = (x: number, y: number) => ({
+      x: (x - graphCenterX) * scale + centerX,
+      y: (y - graphCenterY) * scale + centerY,
+    });
 
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
     const pathSet = new Set(highlightedPath);
     const pathEdges = new Set<string>();
 
@@ -70,61 +70,62 @@ export default function GraphVisualization({
       pathEdges.add(`${highlightedPath[i]}-${highlightedPath[i + 1]}`);
     }
 
+    // ✅ Draw edges
     edges.forEach(edge => {
-      const fromNode = nodes.find(n => n.id === edge.from);
-      const toNode = nodes.find(n => n.id === edge.to);
+      const fromNode = nodeMap.get(edge.from);
+      const toNode = nodeMap.get(edge.to);
+      if (!fromNode || !toNode) return;
 
-      if (fromNode && toNode) {
-        const from = transform(fromNode.x, fromNode.y);
-        const to = transform(toNode.x, toNode.y);
+      const from = transform(fromNode.x, fromNode.y);
+      const to = transform(toNode.x, toNode.y);
+      const isHighlighted = pathEdges.has(`${edge.from}-${edge.to}`);
 
-        const isHighlighted = pathEdges.has(`${edge.from}-${edge.to}`);
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.strokeStyle = isHighlighted ? '#3b82f6' : '#d1d5db';
+      ctx.lineWidth = isHighlighted ? 3 : 2;
+      ctx.stroke();
 
-        ctx.beginPath();
-        ctx.moveTo(from.x, from.y);
-        ctx.lineTo(to.x, to.y);
-        ctx.strokeStyle = isHighlighted ? '#3b82f6' : '#d1d5db';
-        ctx.lineWidth = isHighlighted ? 3 : 2;
-        ctx.stroke();
+      const angle = Math.atan2(to.y - from.y, to.x - from.x);
+      const arrowSize = 10;
+      const headX = to.x - Math.cos(angle) * 20;
+      const headY = to.y - Math.sin(angle) * 20;
 
-        const angle = Math.atan2(to.y - from.y, to.x - from.x);
-        const arrowSize = 10;
-        const headX = to.x - Math.cos(angle) * 20;
-        const headY = to.y - Math.sin(angle) * 20;
+      ctx.beginPath();
+      ctx.moveTo(headX, headY);
+      ctx.lineTo(
+        headX - arrowSize * Math.cos(angle - Math.PI / 6),
+        headY - arrowSize * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.lineTo(
+        headX - arrowSize * Math.cos(angle + Math.PI / 6),
+        headY - arrowSize * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.closePath();
+      ctx.fillStyle = isHighlighted ? '#3b82f6' : '#d1d5db';
+      ctx.fill();
 
-        ctx.beginPath();
-        ctx.moveTo(headX, headY);
-        ctx.lineTo(
-          headX - arrowSize * Math.cos(angle - Math.PI / 6),
-          headY - arrowSize * Math.sin(angle - Math.PI / 6)
-        );
-        ctx.lineTo(
-          headX - arrowSize * Math.cos(angle + Math.PI / 6),
-          headY - arrowSize * Math.sin(angle + Math.PI / 6)
-        );
-        ctx.closePath();
-        ctx.fillStyle = isHighlighted ? '#3b82f6' : '#d1d5db';
-        ctx.fill();
+      // distance label
+      const midX = (from.x + to.x) / 2;
+      const midY = (from.y + to.y) / 2;
 
-        const midX = (from.x + to.x) / 2;
-        const midY = (from.y + to.y) / 2;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(midX, midY, 16, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.strokeStyle = isHighlighted ? '#3b82f6' : '#9ca3af';
+      ctx.lineWidth = 2;
+      ctx.stroke();
 
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(midX, midY, 16, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.strokeStyle = isHighlighted ? '#3b82f6' : '#9ca3af';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.fillStyle = isHighlighted ? '#3b82f6' : '#4b5563';
-        ctx.font = 'bold 12px system-ui';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(edge.distance.toFixed(1), midX, midY);
-      }
+      ctx.fillStyle = isHighlighted ? '#3b82f6' : '#4b5563';
+      ctx.font = 'bold 12px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(edge.distance.toFixed(1), midX, midY);
     });
 
+    // ✅ Draw nodes
     nodes.forEach(node => {
       const pos = transform(node.x, node.y);
       const isHighlighted = pathSet.has(node.id);
@@ -145,9 +146,9 @@ export default function GraphVisualization({
     });
   }, [nodes, edges, highlightedPath]);
 
+  // ✅ Keep hook order consistent — handler defined *outside* of any conditions
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!onNodeClick || nodes.length === 0) return;
-
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -173,16 +174,14 @@ export default function GraphVisualization({
     const graphCenterX = (minX + maxX) / 2;
     const graphCenterY = (minY + maxY) / 2;
 
-    const transform = (nx: number, ny: number) => {
-      const scaledX = (nx - graphCenterX) * scale + centerX;
-      const scaledY = (ny - graphCenterY) * scale + centerY;
-      return { x: scaledX, y: scaledY };
-    };
+    const transform = (nx: number, ny: number) => ({
+      x: (nx - graphCenterX) * scale + centerX,
+      y: (ny - graphCenterY) * scale + centerY,
+    });
 
     for (const node of nodes) {
       const pos = transform(node.x, node.y);
       const distance = Math.sqrt((x - pos.x) ** 2 + (y - pos.y) ** 2);
-
       if (distance <= 18) {
         onNodeClick(node.id);
         break;
